@@ -50,6 +50,7 @@ pdf-compressor <pdf-path-or-folder> [options]
 | Option | Shorthand | Description | Default |
 |---|---|---|---|
 | `--output <path>` | `-o` | Target file path or directory for compressed PDF(s) | `<filename>_compressed.pdf` |
+| `--overwrite` | `-r` | Overwrite the original input file(s) in-place | `false` |
 | `--quality <1-100>` | `-q` | JPEG compression quality for embedded images | `75` |
 | `--max-width <pixels>` | `-w` | Maximum image width (maintains aspect ratio) | Original |
 | `--max-height <pixels>` | - | Maximum image height (maintains aspect ratio) | Original |
@@ -66,19 +67,26 @@ pdf-compressor "document.pdf"
 # Output: document_compressed.pdf
 ```
 
-### 2. High-compression mode with custom output path
+### 2. Overwrite original file in-place
+```bash
+pdf-compressor "document.pdf" --overwrite
+# or shorthand:
+pdf-compressor "document.pdf" -r -q 70
+```
+
+### 3. High-compression mode with custom output path
 ```bash
 pdf-compressor "scan.pdf" -q 60 -o "scan_compressed.pdf"
 ```
 
-### 3. Downscale oversized images and strip metadata
+### 4. Downscale oversized images and strip metadata
 ```bash
 pdf-compressor "presentation.pdf" -w 1600 -q 70 --strip-metadata
 ```
 
-### 4. Batch compress an entire directory of PDFs
+### 5. Batch compress and overwrite an entire directory of PDFs
 ```bash
-pdf-compressor ./scanned_invoices/ -o ./compressed_invoices/ -q 65
+pdf-compressor ./scanned_invoices/ -r -q 65
 ```
 
 ### Benchmark Example

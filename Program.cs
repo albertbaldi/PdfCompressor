@@ -31,15 +31,16 @@ public static class Program
         var maxHeight = ParseNullableIntOption(args, "--max-height", null);
         var outputPath = ParseStringOption(args, "--output", "-o");
         var stripMetadata = args.Contains("--strip-metadata") || args.Contains("-s");
+        var overwrite = args.Contains("--overwrite") || args.Contains("-r") || args.Contains("--replace");
 
         try
         {
             if (Directory.Exists(inputPath))
             {
-                return await ProcessDirectoryAsync(inputPath, outputPath, quality, maxWidth, maxHeight, stripMetadata);
+                return await ProcessDirectoryAsync(inputPath, outputPath, quality, maxWidth, maxHeight, stripMetadata, overwrite);
             }
 
-            return await ProcessSinglePdfAsync(inputPath, outputPath, quality, maxWidth, maxHeight, stripMetadata);
+            return await ProcessSinglePdfAsync(inputPath, outputPath, quality, maxWidth, maxHeight, stripMetadata, overwrite);
         }
         catch (Exception ex)
         {
@@ -54,14 +55,26 @@ public static class Program
         int quality,
         int? maxWidth,
         int? maxHeight,
-        bool stripMetadata)
+        bool stripMetadata,
+        bool overwrite)
     {
-        outputPath ??= GenerateDefaultOutputPath(inputPath);
+        if (overwrite && string.IsNullOrEmpty(outputPath))
+        {
+            outputPath = inputPath;
+        }
+        else
+        {
+            outputPath ??= GenerateDefaultOutputPath(inputPath);
+        }
 
         var originalFileInfo = new FileInfo(inputPath);
         var originalSizeInBytes = originalFileInfo.Length;
 
         Console.WriteLine($"Processing: {Path.GetFileName(inputPath)} ({FormatBytes(originalSizeInBytes)})");
+        if (outputPath == inputPath)
+        {
+            Console.WriteLine("Target: Overwriting original file");
+        }
 
         var result = await CompressPdfAsync(inputPath, outputPath, quality, maxWidth, maxHeight, stripMetadata);
 
@@ -97,7 +110,8 @@ public static class Program
         int quality,
         int? maxWidth,
         int? maxHeight,
-        bool stripMetadata)
+        bool stripMetadata,
+        bool overwrite)
     {
         var pdfFiles = Directory.GetFiles(inputDir, "*.pdf", SearchOption.TopDirectoryOnly);
         if (pdfFiles.Length == 0)
@@ -108,14 +122,25 @@ public static class Program
             return 0;
         }
 
-        outputDir ??= Path.Combine(inputDir, "compressed");
-        if (!Directory.Exists(outputDir))
+        if (!overwrite && string.IsNullOrEmpty(outputDir))
+        {
+            outputDir = Path.Combine(inputDir, "compressed");
+        }
+
+        if (!string.IsNullOrEmpty(outputDir) && !Directory.Exists(outputDir))
         {
             Directory.CreateDirectory(outputDir);
         }
 
         Console.WriteLine($"Found {pdfFiles.Length} PDF file(s) in {inputDir}");
-        Console.WriteLine($"Saving compressed PDFs to: {outputDir}\n");
+        if (overwrite && string.IsNullOrEmpty(outputDir))
+        {
+            Console.WriteLine("Mode: Overwriting original files in-place\n");
+        }
+        else
+        {
+            Console.WriteLine($"Saving compressed PDFs to: {outputDir}\n");
+        }
 
         long totalOriginalBytes = 0;
         long totalCompressedBytes = 0;
@@ -124,7 +149,9 @@ public static class Program
         foreach (var file in pdfFiles)
         {
             var fileName = Path.GetFileName(file);
-            var targetPath = Path.Combine(outputDir, fileName);
+            var targetPath = (overwrite && string.IsNullOrEmpty(outputDir))
+                ? file
+                : Path.Combine(outputDir!, fileName);
 
             var origSize = new FileInfo(file).Length;
             totalOriginalBytes += origSize;
@@ -183,8 +210,9 @@ public static class Program
             Directory.CreateDirectory(outputDirectory);
         }
 
-        // Load document
-        using var inputStream = File.OpenRead(inputPath);
+        // Load document into memory to release file handle immediately, allowing safe in-place overwrite
+        var inputBytes = await File.ReadAllBytesAsync(inputPath);
+        using var inputStream = new MemoryStream(inputBytes);
         using var document = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
 
         Console.WriteLine($"Pages: {document.PageCount} | Analyzing PDF objects...");
@@ -569,6 +597,7 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  -o, --output <path>       Output file path or target directory");
+        Console.WriteLine("  -r, --overwrite           Overwrite the original file(s) in-place");
         Console.WriteLine("  -q, --quality <1-100>     Image compression quality (default: 75)");
         Console.WriteLine("  -w, --max-width <pixels>  Maximum width for embedded images");
         Console.WriteLine("      --max-height <pixels> Maximum height for embedded images");
@@ -577,8 +606,9 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("Examples:");
         Console.WriteLine("  pdf-compressor document.pdf");
+        Console.WriteLine("  pdf-compressor document.pdf --overwrite");
         Console.WriteLine("  pdf-compressor document.pdf -q 60 -o compressed.pdf");
         Console.WriteLine("  pdf-compressor document.pdf -q 50 -w 1600 --strip-metadata");
-        Console.WriteLine("  pdf-compressor ./scanned_invoices/ -o ./compressed_invoices/ -q 70");
+        Console.WriteLine("  pdf-compressor ./scanned_invoices/ -r -q 70");
     }
 }
