@@ -23,7 +23,7 @@ Build and install it locally:
 ```bash
 cd PdfCompressor
 dotnet pack -c Release -o ./nupkg
-dotnet tool install --global --add-source ./nupkg PdfCompressor
+dotnet tool install --global --add-source ./nupkg PdfCompressor.Cli
 ```
 
 > **macOS Note**: If `pdf-compressor` is not recognized immediately, ensure your `PATH` includes the .NET tools folder in `~/.zshrc`:
