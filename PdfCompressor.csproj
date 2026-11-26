@@ -9,7 +9,8 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>pdf-compressor</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
-    <Version>1.1.0</Version>
+    <RollForward>Major</RollForward>
+    <Version>1.1.1</Version>
     <Description>A cross-platform CLI PDF compression tool built with .NET 10</Description>
   </PropertyGroup>
 
